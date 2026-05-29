@@ -1,54 +1,53 @@
 # DiagSQL: A Diagnostic Validator for Text-to-SQL
 
-## 概述
+## Overview
 
-DiagSQL 训练 SQL 诊断验证器，实现 Closed-Loop Text-to-SQL：
+DiagSQL trains an SQL diagnostic validator to enable Closed-Loop Text-to-SQL:
 
 ```
-GPT-4o 生成 SQL → DiagSQL 诊断 → GPT-4o 修复 → 循环 K 轮
+GPT-4o generates SQL → DiagSQL diagnoses → GPT-4o refines → repeat for K rounds
 ```
 
-核心算法：
-- **FTRA** (Fine-grained Token-level Reward Allocation)：将奖励精确分配到 JSON 响应的各个 token span
-- **CORS** (Co-occurrence-aware Reward Shaping)：利用预计算的错误共现矩阵调整奖励
+Core algorithms:
+- **FTRA** (Fine-grained Token-level Reward Allocation): precisely allocates rewards to each token span of the JSON response
+- **CORS** (Co-occurrence-aware Reward Shaping): adjusts rewards using a precomputed error co-occurrence matrix
 
-## 环境准备
+## Environment Setup
 
 ```bash
 conda activate nl2sql_bugs
-# 依赖: torch, transformers, accelerate, trl, peft, datasets, vllm, tensorboard, pyyaml, requests, tqdm
+# Dependencies: torch, transformers, accelerate, trl, peft, datasets, vllm, tensorboard, pyyaml, requests, tqdm
 ```
 
-## 快速开始
+## Quick Start
 
-整个流程分为 4 个独立的 Step，通过**配置文件**控制运行规模：
-- `configs/config_full.yaml`：完整训练 + 全量评估
+The full workflow consists of 4 independent steps, controlled by a **configuration file**:
+- `configs/config_full.yaml`: full training + full evaluation
 
 ---
 
-
-使用 `config_full.yaml` 进行正式训练：
+Use `config_full.yaml` for full-scale training:
 
 ```bash
 cd DiagSQL/codes
 conda activate nl2sql_bugs
 
-# Step 1: 构造全量数据（SFT + GRPO 20000条）
+# Step 1: Build the full training data (SFT + 20,000 GRPO samples)
 python step1_build_data.py --config configs/config_full.yaml
 
-# Step 2: 完整训练（SFT + GRPO
+# Step 2: Full training (SFT + GRPO)
 python step2_train.py --config configs/config_full.yaml
 
-# Step 3: 全量诊断测试（2018条 NL2SQLBugs）
+# Step 3: Full diagnostic evaluation (2,018 NL2SQL-Bugs samples)
 python step3_diagnose.py --config configs/config_full.yaml
 
-# Step 4: 完整管线评估（BIRD 1534条 + Spider 1034条，K=3）
+# Step 4: Full pipeline evaluation (1,534 BIRD + 1,034 Spider, K=3)
 python step4_pipeline.py --config configs/config_full.yaml
 ```
 
-### 跳过 SFT，使用已有 checkpoint
+### Skip SFT and reuse an existing checkpoint
 
-如果已有 SFT checkpoint，可以跳过 SFT 直接训练 GRPO：
+If you already have an SFT checkpoint, you can skip SFT and train GRPO directly:
 
 ```bash
 python step2_train.py --config configs/config_full.yaml \
@@ -56,91 +55,90 @@ python step2_train.py --config configs/config_full.yaml \
     --sft_model_path /path/to/diagsql_checkpoint_sft
 ```
 
-### 使用指定模型运行 Step 3/4
+### Run Step 3/4 with a specified model
 
 ```bash
-# 用已训练好的模型进行诊断
+# Run diagnosis with a trained model
 python step3_diagnose.py --config configs/config_full.yaml \
     --model_path /path/to/diagsql_checkpoint
 
-# 用已训练好的模型跑完整管线
+# Run the full pipeline with a trained model
 python step4_pipeline.py --config configs/config_full.yaml \
     --model_path /path/to/diagsql_checkpoint
 ```
 
-
-## 目录结构
+## Directory Structure
 
 ```
 codes/
-├── 流程脚本（按步骤拆分）
-│   ├── step1_build_data.py       # 数据构造
-│   ├── step2_train.py            # 模型训练（SFT + GRPO）
-│   ├── step3_diagnose.py         # SQL 诊断评估
-│   └── step4_pipeline.py         # 完整管线（生成→诊断→修复→评估）
+├── Pipeline scripts (split by step)
+│   ├── step1_build_data.py       # Data construction
+│   ├── step2_train.py            # Model training (SFT + GRPO)
+│   ├── step3_diagnose.py         # SQL diagnostic evaluation
+│   └── step4_pipeline.py         # Full pipeline (generate → diagnose → refine → evaluate)
 │
-├── 配置文件
+├── Configuration files
 │   └── configs/
-│       └── config_full.yaml      # 完整配置（全量训练评估）
+│       └── config_full.yaml      # Full configuration (full training & evaluation)
 │
-├── 核心算法
-│   ├── train_diagsql.py          # GRPO RL 训练引擎
+├── Core algorithms
+│   ├── train_diagsql.py          # GRPO RL training engine
 │   ├── grpo.py                   # GRPO rollout + policy update
 │   ├── ftra.py                   # Fine-grained Token-level Reward Allocation
 │   ├── cors.py                   # Co-occurrence-aware Reward Shaping
-│   ├── dataset.py                # 训练数据加载器
-│   └── data_types.py             # 数据结构定义
+│   ├── dataset.py                # Training data loader
+│   └── data_types.py             # Data structure definitions
 │
-├── 管线与评估
-│   ├── pipeline_diagsql.py       # Closed-Loop 管线（GPT-4o + DiagSQL）
-│   └── eval_bird.py              # BIRD/Spider 执行准确率评估
+├── Pipeline & evaluation
+│   ├── pipeline_diagsql.py       # Closed-Loop pipeline (GPT-4o + DiagSQL)
+│   └── eval_bird.py              # BIRD/Spider execution accuracy evaluation
 │
-└── 工具
-    ├── export_cooccurrence.py    # 预计算共现矩阵
-    ├── analyze_error_causality.py # 错误共现分析
-    └── generate_error_sql.py     # 生成错误 SQL
+└── Utilities
+    ├── export_cooccurrence.py    # Precompute the co-occurrence matrix
+    ├── analyze_error_causality.py # Error co-occurrence analysis
+    └── generate_error_sql.py     # Generate erroneous SQL
 ```
 
 ---
 
-## 算法说明
+## Algorithm Details
 
-### FTRA：将响应解析为 span，独立分配奖励
+### FTRA: Parse the response into spans and allocate rewards independently
 
 ```
 Response → {s_fmt, s_label, s_err^(1), ..., s_err^(K)}
 
-r_fmt   → 均匀分配到所有 token
-r_label → 分配到 "label":"wrong" 对应的 token
-r_err^k → 分配到第 k 个 error_type 对象的 token（含 CORS 调整）
+r_fmt   → distributed uniformly over all tokens
+r_label → assigned to tokens of "label":"wrong"
+r_err^k → assigned to tokens of the k-th error_type object (with CORS adjustment)
 ```
 
-### CORS：基于共现矩阵的结构化奖励调整
+### CORS: Structural reward shaping based on the co-occurrence matrix
 
 ```
 r_err^(u) = r_base^(u) + λ · Σ_{v≠u} [M_{u,v} · b_v · b̂_v - |M_{u,v}| · (b_v - b̂_v)²]
 ```
 
-- `M[u,v] = log2(Lift(u,v))`：预计算的错误对共现强度
-- Associative Bonus：正确预测共现错误对 → 奖励
-- Cascading Penalty：遗漏强关联错误 → 惩罚
-- Illogical Combination：幻觉不相关错误 → 惩罚
+- `M[u,v] = log2(Lift(u,v))`: precomputed co-occurrence strength of error pairs
+- Associative Bonus: correctly predicting co-occurring error pairs → reward
+- Cascading Penalty: missing strongly-associated errors → penalty
+- Illogical Combination: hallucinating unrelated errors → penalty
 
 ---
 
-## 数据集
+## Datasets
 
-| 数据集 | 路径 | 规模 |
-|--------|------|------|
-| NL2SQL-Bugs | `dataset/NL2SQLBugs/NL2SQL-Bugs-with-evidence.json` | 2018 条 |
-| GRPO 训练数据 | `dataset/NL2SQLBugs/generated_error_data_2k.json` | 2000 条 |
-| 共现矩阵 | `dataset/NL2SQLBugs/cooccurrence_matrix.json` | 466 条关系 |
-| BIRD Dev | `dataset/BIRD/dev_20240627/dev.json` | 1534 条 |
-| Spider Dev | `dataset/spider_data/dev.json` | 1034 条 |
+| Dataset | Path | Size |
+|---------|------|------|
+| NL2SQL-Bugs | `dataset/NL2SQLBugs/NL2SQL-Bugs-with-evidence.json` | 2,018 samples |
+| GRPO training data | `dataset/NL2SQLBugs/generated_error_data_2k.json` | 2,000 samples |
+| Co-occurrence matrix | `dataset/NL2SQLBugs/cooccurrence_matrix.json` | 466 relations |
+| BIRD Dev | `dataset/BIRD/dev_20240627/dev.json` | 1,534 samples |
+| Spider Dev | `dataset/spider_data/dev.json` | 1,034 samples |
 
-## 硬件要求
+## Hardware Requirements
 
-- 4× NVIDIA H20 (96GB) / 同等规格 GPU
-- SFT 训练：`device_map="auto"` + LoRA
-- GRPO 训练：`device_map="auto"` + gradient checkpointing
-- 推理：vLLM `tensor_parallel_size=4`
+- 4× NVIDIA H20 (96 GB) or equivalent GPUs
+- SFT training: `device_map="auto"` + LoRA
+- GRPO training: `device_map="auto"` + gradient checkpointing
+- Inference: vLLM with `tensor_parallel_size=4`
