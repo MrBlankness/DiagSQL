@@ -1,0 +1,52 @@
+# ===== Dataset (do NOT commit, see README for download instructions) =====
+dataset/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ===== Virtual environments =====
+venv/
+env/
+.venv/
+.env
+
+# ===== Training artifacts =====
+checkpoints/
+logs/
+output/
+output_*/
+runs/
+wandb/
+*.ckpt
+*.pt
+*.bin
+*.safetensors
+
+# ===== Logs / temporary files =====
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
+
+# ===== IDE / editor =====
+.vscode/
+.idea/
+*.iml
+.claude/
+
+# ===== Large media / docs (usually not needed in code repo) =====
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tgz

@@ -1,0 +1,71 @@
+# DiagSQL Pipeline Configuration - FULL MODE
+# 完整数据训练与评估
+
+# ═══ 通用路径 ═══
+base_dir: "DiagSQL"
+output_dir: "DiagSQL/codes/output_full"
+base_model_path: "Qwen3-8B"
+
+# ═══ 数据路径 ═══
+nl2sql_bugs_path: "DiagSQL/dataset/NL2SQLBugs/NL2SQL-Bugs-with-evidence.json"
+nl2sql_bugs_enriched_path: "DiagSQL/dataset/NL2SQLBugs/NL2SQL-Bugs-with-evidence-enriched.json"
+grpo_source_data_path: "DiagSQL/dataset/NL2SQLBugs/generated_error_data_2k.json"
+cooccurrence_path: "DiagSQL/dataset/NL2SQLBugs/cooccurrence_matrix.json"
+bird_dev_json: "DiagSQL/dataset/BIRD/dev_20240627/dev.json"
+bird_db_path: "DiagSQL/dataset/BIRD/dev_20240627/dev_databases"
+spider_dev_json: "DiagSQL/dataset/spider_data/dev.json"
+spider_db_path: "DiagSQL/dataset/spider_data/database"
+
+# ═══ Step 1: 数据构造 ═══
+step1:
+  sft_num_samples: 2000         # 使用全部 NL2SQL-Bugs 数据
+  grpo_num_entries: 20000        # 使用全部 generated_error_data_2k
+
+# ═══ Step 2: 模型训练 ═══
+step2:
+  # SFT 配置
+  sft:
+    lora_r: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    lora_target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    max_seq_length: 4096
+    num_train_epochs: 3
+    per_device_train_batch_size: 2
+    gradient_accumulation_steps: 8
+    learning_rate: 2.0e-4
+
+  # GRPO 配置
+  grpo:
+    num_questions_per_batch: 4
+    num_answer_per_question: 2
+    max_gen_len: 1024
+    micro_batch_size: 2
+    learning_rate: 5.0e-7
+    max_steps: 20000
+    rollout_batch_size: 2
+    use_cors: true
+    cors_lambda: 0.3
+    cors_lift_threshold: 1.0
+    entropy_coeff: 0.01
+    use_gradient_checkpointing: true
+    temperature: 1.0
+    ckpt_save_interval: 50
+
+# ═══ Step 3: SQL 诊断测试 ═══
+step3:
+  num_test_samples: 0           # 0 表示使用全部数据
+  tensor_parallel_size: 4
+  gpu_memory_utilization: 0.90
+  max_model_len: 8192
+
+# ═══ Step 4: 完整管线 ═══
+step4:
+  bird_num_samples: 0           # 0 表示使用全部 BIRD dev (1534条)
+  spider_num_samples: 0         # 0 表示使用全部 Spider dev (1034条)
+  max_refine_rounds: 3          # K=3 轮 refine
+  gpt_model: "gpt-4o"
+  gpt_temperature: 0.3
+  tensor_parallel_size: 4
+  gpu_memory_utilization: 0.90
+  max_model_len: 8192
