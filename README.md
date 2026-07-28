@@ -1,5 +1,8 @@
 # DiagSQL: A Diagnostic Validator for Text-to-SQL
 
+![result](https://github.com/MrBlankness/DiagSQL/blob/main/DiagSQL-training.png)
+
+
 > Closed-Loop Text-to-SQL: **GPT-4o generates SQL → DiagSQL diagnoses → GPT-4o refines → repeat for K rounds**
 >
 > A fine-grained SQL error diagnostic model trained with **FTRA** (Fine-grained Token-level Reward Allocation) + **CORS** (Co-occurrence-aware Reward Shaping).
